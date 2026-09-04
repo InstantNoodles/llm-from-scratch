@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>手写 GPT 十二周</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F3F4F7;
+    --surface: #FFFFFF;
+    --surface-2: #EBEDF2;
+    --ink: #1B1E26;
+    --ink-2: #454B58;
+    --muted: #6E7584;
+    --line: #DCDFE6;
+    --accent: #E8471F;
+    --accent-ink: #C43A15;
+    --accent-soft: #FCE9E3;
+    --done: #2E8B5A;
+    --done-soft: #E3F3EA;
+    --shadow: 0 1px 2px rgba(20, 24, 40, .06), 0 8px 24px -12px rgba(20, 24, 40, .18);
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161B;
+      --surface: #1C1F26;
+      --surface-2: #242830;
+      --ink: #E8EAEF;
+      --ink-2: #C3C7D1;
+      --muted: #8E95A3;
+      --line: #2E323C;
+      --accent: #FF7048;
+      --accent-ink: #FF8A68;
+      --accent-soft: #3A2419;
+      --done: #5BC48A;
+      --done-soft: #1E3529;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px -12px rgba(0, 0, 0, .6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161B;
+    --surface: #1C1F26;
+    --surface-2: #242830;
+    --ink: #E8EAEF;
+    --ink-2: #C3C7D1;
+    --muted: #8E95A3;
+    --line: #2E323C;
+    --accent: #FF7048;
+    --accent-ink: #FF8A68;
+    --accent-soft: #3A2419;
+    --done: #5BC48A;
+    --done-soft: #1E3529;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px -12px rgba(0, 0, 0, .6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 96px; }
+
+  /* ---------- header ---------- */
+  .top { padding: 56px 0 28px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+  h1 {
+    margin: 10px 0 12px;
+    font-size: clamp(30px, 5vw, 42px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  .lede { margin: 0; max-width: 40em; color: var(--ink-2); }
+
+  /* ---------- sticky progress ---------- */
+  .progress {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin-top: 28px;
+    padding: 12px 16px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 16px;
+    align-items: center;
+  }
+  .progress .bar {
+    grid-column: 1 / -1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .progress .bar > i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .35s ease;
+  }
+  .progress .count { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); }
+  .progress .count b { color: var(--ink); font-weight: 500; }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .status::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .status[data-state="synced"]::before { background: var(--done); }
+  .status[data-state="dirty"]::before, .status[data-state="saving"]::before { background: var(--accent); }
+  .status[data-state="saving"]::before { animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  /* ---------- routine + rules ---------- */
+  .frame {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 640px) { .frame { grid-template-columns: 1fr; } }
+  .panel {
+    padding: 18px 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .panel h3 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .panel ol, .panel ul { margin: 0; padding-left: 1.3em; color: var(--ink-2); }
+  .panel li { margin: 4px 0; }
+  .panel li b { color: var(--ink); font-weight: 500; }
+  .panel .time { font-family: var(--mono); font-size: 12.5px; color: var(--accent-ink); margin-right: 6px; }
+
+  /* ---------- weeks ---------- */
+  .weeks { margin-top: 40px; display: flex; flex-direction: column; gap: 20px; }
+  .week {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .week.current { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .week.complete .wk-title { color: var(--muted); }
+
+  .week-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 6px 16px;
+    align-items: baseline;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .wk-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-ink);
+    letter-spacing: .04em;
+    align-self: center;
+  }
+  .week.complete .wk-num { color: var(--done); }
+  .wk-title { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.3; }
+  .wk-range { grid-column: 2; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); }
+  .wk-now {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    vertical-align: 2px;
+  }
+  .wk-prog {
+    grid-column: 3; grid-row: 1 / span 2;
+    align-self: center;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--ink-2);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .wk-prog .mini { width: 72px; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+  .wk-prog .mini > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .week.complete .wk-prog .mini > i { background: var(--done); }
+
+  .days { list-style: none; margin: 0; padding: 6px 0; }
+  .day {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    gap: 0 12px;
+    padding: 10px 22px;
+  }
+  .day + .day { border-top: 1px dashed var(--line); }
+  @media (max-width: 560px) { .day { grid-template-columns: 1fr; } }
+  .day-label {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    padding-top: 6px;
+    line-height: 1.5;
+  }
+  .day-label small { display: block; font-size: 11.5px; color: var(--accent-ink); }
+  .tasks { list-style: none; margin: 0; padding: 0; }
+  .task { margin: 0; }
+  .task label, .criterion label {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 6px 8px;
+    margin: 0 -8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .task label:hover, .criterion label:hover { background: var(--surface-2); }
+  input[type="checkbox"] {
+    appearance: none;
+    margin: 6px 0 0;
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--muted);
+    border-radius: 4px;
+    background: var(--surface);
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+  }
+  input[type="checkbox"]::after {
+    content: "";
+    width: 10px; height: 6px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+    opacity: 0;
+  }
+  input[type="checkbox"]:checked { background: var(--done); border-color: var(--done); }
+  input[type="checkbox"]:checked::after { opacity: 1; }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .task span, .criterion span { color: var(--ink); }
+  .task input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+  .task code, .criterion code, .panel code {
+    font-family: var(--mono);
+    font-size: .88em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
+  .criterion {
+    margin: 6px 14px 14px;
+    padding: 8px 8px 8px 12px;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 8px 8px 0;
+  }
+  .criterion.met { border-left-color: var(--done); background: var(--done-soft); }
+  .criterion label:hover { background: transparent; }
+  .criterion .tag {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .06em;
+    color: var(--accent-ink);
+    margin-bottom: 2px;
+  }
+  .criterion.met .tag { color: var(--done); }
+  .criterion input:checked + span > .text { color: var(--muted); }
+
+  .foot { margin-top: 40px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .foot p { margin: 4px 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress .bar > i, .wk-prog .mini > i { transition: none; }
+    .status[data-state="saving"]::before { animation: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">2026.09.05 → 2026.11.29 · 12 周 · 每周约 13.5 小时</div>
+    <h1>手写 GPT 十二周</h1>
+    <p class="lede">从 100 行的 micrograd 到能在 GPU 上训练 10M 参数模型的 nanoGPT。每完成一项就打勾，进度会随页面保存，下次打开接着来。</p>
+
+    <div class="progress" aria-live="polite">
+      <div class="count"><b id="doneCount">0</b> / <span id="totalCount">0</span> 项 · <span id="weekNow">—</span></div>
+      <div class="status" id="status" data-state="loading">读取中…</div>
+      <div class="bar"><i id="bar"></i></div>
+    </div>
+  </header>
+
+  <div class="frame">
+    <section class="panel">
+      <h3>每天的固定流程</h3>
+      <ol>
+        <li><span class="time">前 10 分钟</span>不看视频，凭记忆重写昨天的核心代码。写不出再回去看。</li>
+        <li><span class="time">中间</span>跟视频敲代码。每讲一段就暂停，自己先写，写不出再看他写。</li>
+        <li><span class="time">后 10 分钟</span>在 <code>notes.md</code> 写 3 到 5 行：今天学到什么、哪里卡了。</li>
+      </ol>
+    </section>
+    <section class="panel">
+      <h3>三条规则</h3>
+      <ul>
+        <li><b>允许落后，不允许跳过。</b>某周没完成就顺延，这是路线图不是死线。</li>
+        <li><b>卡住超过 30 分钟就换方式。</b>问 AI、搜 GitHub issue、或先跳过回头再看。</li>
+        <li><b>每周日晚回顾 15 分钟。</b>上周完成标准没达到，下周先补它。</li>
+      </ul>
+    </section>
+  </div>
+
+  <main class="weeks" id="weeks"></main>
+
+  <footer class="foot">
+    <p>时间投入假设：工作日每天 1.5 小时，周末每天 3 小时。做不到就把当周任务顺延。</p>
+    <p>视频均出自 Andrej Karpathy 的《Neural Networks: Zero to Hero》系列，B 站有带字幕的搬运。</p>
+  </footer>
+</div>
+
+<script id="progress" type="application/json">{"done":{},"updated":0}</script>
+
+<script data-page>
+(function () {
+  'use strict';
+
+  /* ---------- content ---------- */
+  var DATA = [
+    { id: 'w0', num: 'W0', title: '准备', start: '2026-09-05', end: '2026-09-06', range: '9/5 周六 – 9/6 周日',
+      days: [
+        { label: '周六', hours: '3 小时', tasks: [
+          '装环境：Python 3.11+、VS Code，<code>pip install torch numpy jupyter matplotlib</code>。跑通 <code>torch.randn(3,4) @ torch.randn(4,5)</code>，说出结果为什么是 3×5',
+          '建一个 Git 仓库 <code>llm-from-scratch</code>，之后所有代码都放这里',
+          '看 3Blue1Brown《线性代数的本质》第 1 到 4 集：向量、线性组合、线性变换、矩阵乘法' ] },
+        { label: '周日', hours: '3 小时', tasks: [
+          '看《线性代数的本质》第 5 到 9 集，跳过行列式和特征值',
+          'NumPy 练习 1 小时：创建数组、索引切片、broadcasting、<code>reshape</code>、<code>sum(axis=…)</code>。每个都先预测 shape 再运行',
+          '看 3Blue1Brown《神经网络》第 1 到 2 集，建立直觉' ] } ],
+      criterion: '不运行就能写出 <code>(32,10) @ (10,5)</code> 的结果形状，并用一句话解释矩阵乘法在做什么' },
+
+    { id: 'w1', num: 'W1', title: 'micrograd：手写反向传播', start: '2026-09-07', end: '2026-09-13', range: '9/7 周一 – 9/13 周日',
+      days: [
+        { label: '周一 – 周三', hours: '每天 1.5 小时', tasks: [
+          '跟 Karpathy《building micrograd》视频敲完，全长 2.5 小时，每天约 50 分钟视频' ] },
+        { label: '周四', hours: '1.5 小时', tasks: [
+          '看 3Blue1Brown《神经网络》第 3 到 4 集：梯度下降、反向传播，和自己写的代码对照' ] },
+        { label: '周五', hours: '1.5 小时', tasks: [
+          '关掉视频，从空文件重写 <code>Value</code> 类和 <code>backward()</code>，然后对比原版' ] },
+        { label: '周末', hours: '6 小时', tasks: [
+          '用自己的 micrograd 训练一个两层 MLP 做二分类，画出决策边界' ] } ],
+      criterion: '能默写 <code>__add__</code> 和 <code>__mul__</code> 的 backward，并用一句话说清链式法则在 <code>backward()</code> 里怎么体现' },
+
+    { id: 'w2', num: 'W2', title: 'bigram 与 MLP 语言模型', start: '2026-09-14', end: '2026-09-20', range: '9/14 周一 – 9/20 周日',
+      days: [
+        { label: '周一 – 周二', hours: '3 小时', tasks: [ 'makemore Part 1：bigram 模型，理解“预测下一个字符”和训练循环' ] },
+        { label: '周三 – 周五', hours: '4.5 小时', tasks: [ 'makemore Part 2：MLP。重点理解 embedding、隐藏层、softmax、交叉熵' ] },
+        { label: '周末', hours: '6 小时', tasks: [
+          '换一份自己找的数据集（中文人名、诗句，几千行文本即可）跑 MLP',
+          '调 embedding 维度和隐藏层大小，记录 loss 变化' ] } ],
+      criterion: '能解释交叉熵为什么是负对数似然，以及 train loss 与 val loss 分开看的意义' },
+
+    { id: 'w3', num: 'W3', title: '训练的内部细节', start: '2026-09-21', end: '2026-09-27', range: '9/21 周一 – 9/27 周日',
+      days: [
+        { label: '周一 – 周三', hours: '4.5 小时', tasks: [ 'makemore Part 3：激活值分布、梯度、BatchNorm' ] },
+        { label: '周四 – 周日', hours: '7.5 小时', tasks: [
+          'makemore Part 4《Becoming a Backprop Ninja》：手推每一步梯度。视频 2 小时，实际要 5 到 6 小时，这是全程最难的一周，允许卡住' ] } ],
+      criterion: '手写 softmax + 交叉熵的反向传播，与 PyTorch autograd 的结果对上' },
+
+    { id: 'w4', num: 'W4', title: '巩固与缓冲', start: '2026-09-28', end: '2026-10-04', range: '9/28 周一 – 10/4 周日 · 含国庆',
+      days: [
+        { label: '周一 – 周二', hours: '3 小时', tasks: [ 'makemore Part 5：WaveNet，学会把模型模块化成 <code>nn.Module</code> 风格' ] },
+        { label: '周三 – 周日', hours: '国庆缓冲', tasks: [
+          '补前三周没完成的内容',
+          '都完成的话：做 PyTorch 官方 60 分钟教程，把手写部分换成 <code>torch.nn</code> 版本，对比代码量' ] } ],
+      criterion: '不看资料写出标准 PyTorch 训练循环：模型、优化器、前向、loss、<code>zero_grad</code>、<code>backward</code>、<code>step</code>' },
+
+    { id: 'w5', num: 'W5', title: '手写 GPT · 上：attention', start: '2026-10-05', end: '2026-10-11', range: '10/5 周一 – 10/11 周日',
+      days: [
+        { label: '周一 – 周二', hours: '3 小时', tasks: [ '《Let’s build GPT》前半：数据加载、字符级 tokenizer、bigram baseline' ] },
+        { label: '周三 – 周五', hours: '4.5 小时', tasks: [
+          'self-attention 推导：为什么用下三角 mask，query / key / value 各是什么，为什么除以 <code>sqrt(d_k)</code>' ] },
+        { label: '周末', hours: '6 小时', tasks: [ '关视频，从零写出单头 attention，验证输出 shape' ] } ],
+      criterion: '能画出一次 attention 的数据流，并标出每个中间张量的 shape' },
+
+    { id: 'w6', num: 'W6', title: '手写 GPT · 下：拼装与训练', start: '2026-10-12', end: '2026-10-18', range: '10/12 周一 – 10/18 周日',
+      days: [
+        { label: '周一 – 周三', hours: '4.5 小时', tasks: [ '多头注意力、前馈层、残差连接、LayerNorm、Dropout' ] },
+        { label: '周四 – 周五', hours: '3 小时', tasks: [ '拼装成完整 GPT，在莎士比亚数据集上训练' ] },
+        { label: '周末', hours: '6 小时', tasks: [
+          '换成自己找的中文文本训练，生成样本',
+          '写一篇 500 字笔记，解释 Transformer 每一层在做什么' ] } ],
+      criterion: '合上所有资料，从空文件写出可运行的 GPT，并训练出能生成通顺片段的结果', milestone: true },
+
+    { id: 'w7', num: 'W7', title: 'Tokenizer：手写 BPE', start: '2026-10-19', end: '2026-10-25', range: '10/19 周一 – 10/25 周日',
+      days: [
+        { label: '周一 – 周四', hours: '6 小时', tasks: [ '《Let’s build the GPT Tokenizer》，手写 BPE 分词器' ] },
+        { label: '周五 – 周日', hours: '7.5 小时', tasks: [ '把自己的 GPT 从字符级换成 BPE 分词，对比效果' ] } ],
+      criterion: '能解释 BPE 的 merge 过程，并说出词表大小对模型的影响' },
+
+    { id: 'w8', num: 'W8', title: '真正训练一个模型', start: '2026-10-26', end: '2026-11-01', range: '10/26 周一 – 11/1 周日',
+      days: [
+        { label: '本周', hours: '13.5 小时', tasks: [
+          '读 nanoGPT 源码（约 300 行），列出与自己版本的差异',
+          '学会用 GPU 训练。本地没有显卡就用 Google Colab 免费版或 Kaggle',
+          '加上学习率 warmup、cosine decay、混合精度、checkpoint 保存',
+          '训练一个 10M 参数级别的模型，跑 30 分钟以上，保存后能加载并生成文本' ] } ],
+      criterion: 'GitHub 仓库的 README 里有你训练出的模型的生成样例' },
+
+    { id: 'w9', num: 'W9–12', title: '加深', start: '2026-11-02', end: '2026-11-29', range: '11/2 周一 – 11/29 周日 · 四周',
+      days: [
+        { label: '读论文', hours: '约 1 周', tasks: [
+          '读《Attention Is All You Need》原文，这时候能读懂了',
+          '读 GPT-2 论文，列出它和你写的模型有哪些差别' ] },
+        { label: '选一个做', hours: '约 2 周', tasks: [
+          '三选一：实现 KV cache 加速推理 / 实现 RoPE 位置编码 / 用 HuggingFace 微调一个开源小模型' ] },
+        { label: '输出', hours: '约 1 周', tasks: [ '写一篇完整博客，讲清楚你是怎么从零写出 GPT 的。写出来才算真懂' ] } ],
+      criterion: '博客发布，别人照着能复现你的结果' }
+  ];
+
+  /* ---------- state ---------- */
+  var KEY = 'gpt12.progress';
+  var SCROLL_KEY = 'gpt12.scroll';
+  var state = readState();
+  var artifactNs = null;
+  var readOnly = false;
+  var publishTimer = null;
+
+  function readPublished() {
+    var pub = { done: {}, updated: 0 };
+    try { pub = JSON.parse(document.getElementById('progress').textContent) || pub; } catch (e) {}
+    if (!pub.done) pub.done = {};
+    return pub;
+  }
+  function readState() {
+    var pub = readPublished();
+    var loc = null;
+    try { loc = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    if (loc && loc.done && (loc.updated || 0) > (pub.updated || 0)) return loc;
+    return pub;
+  }
+  function saveLocal() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  /* ---------- dates ---------- */
+  function parse(d) { var p = d.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  function weekStatus(w) {
+    var s = parse(w.start), e = parse(w.end);
+    if (today > e) return 'past';
+    if (today >= s) return 'current';
+    return 'future';
+  }
+  var currentWeek = null;
+  for (var i = 0; i < DATA.length; i++) {
+    if (weekStatus(DATA[i]) !== 'past') { currentWeek = DATA[i]; break; }
+  }
+
+  /* ---------- render ---------- */
+  function idsOf(w) {
+    var ids = [];
+    w.days.forEach(function (d, di) { d.tasks.forEach(function (_, ti) { ids.push(w.id + '-' + di + '-' + ti); }); });
+    ids.push(w.id + '-c');
+    return ids;
+  }
+
+  function render() {
+    var html = DATA.map(function (w) {
+      var ids = idsOf(w);
+      var done = ids.filter(function (id) { return state.done[id]; }).length;
+      var st = weekStatus(w);
+      var cls = 'week ' + st + (done === ids.length ? ' complete' : '');
+      var isCurrent = currentWeek && currentWeek.id === w.id;
+      var out = '<section class="' + cls + '" id="' + w.id + '">';
+      out += '<header class="week-head">';
+      out += '<div class="wk-num">' + w.num + '</div>';
+      out += '<h2 class="wk-title">' + w.title + (isCurrent ? '<span class="wk-now">本周</span>' : '') + '</h2>';
+      out += '<div class="wk-range">' + w.range + '</div>';
+      out += '<div class="wk-prog"><span>' + done + '/' + ids.length + '</span><div class="mini"><i style="width:' + (100 * done / ids.length) + '%"></i></div></div>';
+      out += '</header><ol class="days">';
+      w.days.forEach(function (d, di) {
+        out += '<li class="day"><div class="day-label">' + d.label + '<small>' + d.hours + '</small></div><ul class="tasks">';
+        d.tasks.forEach(function (t, ti) {
+          var id = w.id + '-' + di + '-' + ti;
+          out += '<li class="task"><label><input type="checkbox" data-id="' + id + '"' + (state.done[id] ? ' checked' : '') + '><span>' + t + '</span></label></li>';
+        });
+        out += '</ul></li>';
+      });
+      out += '</ol>';
+      var cid = w.id + '-c';
+      out += '<div class="criterion' + (state.done[cid] ? ' met' : '') + '"><label><input type="checkbox" data-id="' + cid + '"' + (state.done[cid] ? ' checked' : '') + '>';
+      out += '<span><span class="tag">' + (w.milestone ? '完成标准 · 核心里程碑' : '完成标准') + '</span><span class="text">' + w.criterion + '</span></span></label></div>';
+      out += '</section>';
+      return out;
+    }).join('');
+    document.getElementById('weeks').innerHTML = html;
+    renderSummary();
+  }
+
+  function renderSummary() {
+    var total = 0, done = 0;
+    DATA.forEach(function (w) { idsOf(w).forEach(function (id) { total++; if (state.done[id]) done++; }); });
+    document.getElementById('doneCount').textContent = done;
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('bar').style.width = (100 * done / total) + '%';
+    var label;
+    if (!currentWeek) label = '全部结束';
+    else if (weekStatus(currentWeek) === 'future') label = currentWeek.num + ' 于 ' + currentWeek.start.slice(5).replace('-', '/') + ' 开始';
+    else label = '本周 ' + currentWeek.num + ' · ' + currentWeek.title;
+    document.getElementById('weekNow').textContent = label;
+  }
+
+  function setStatus(stateName, text) {
+    var el = document.getElementById('status');
+    el.dataset.state = stateName;
+    el.textContent = text;
+  }
+
+  /* ---------- interaction ---------- */
+  document.getElementById('weeks').addEventListener('change', function (e) {
+    var cb = e.target;
+    if (!cb.matches('input[type="checkbox"][data-id]')) return;
+    var id = cb.dataset.id;
+    if (cb.checked) state.done[id] = true; else delete state.done[id];
+    state.updated = Date.now();
+    saveLocal();
+    render();
+    schedulePublish();
+  });
+
+  function schedulePublish() {
+    if (!artifactNs || readOnly) { setStatus('local', '进度已保存在本浏览器'); return; }
+    setStatus('dirty', '2 秒后同步…');
+    clearTimeout(publishTimer);
+    publishTimer = setTimeout(publish, 2000);
+  }
+
+  function pageSource() {
+    return fetch(location.href, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('fetch')); })
+      .then(function (t) { if (!/<script id="progress"/.test(t)) throw new Error('no block'); return t; })
+      .catch(function () {
+        var clone = document.documentElement.cloneNode(true);
+        clone.querySelectorAll('script:not([data-page]):not(#progress)').forEach(function (s) { s.remove(); });
+        var weeks = clone.querySelector('#weeks'); if (weeks) weeks.innerHTML = '';
+        return '<!doctype html>\n' + clone.outerHTML;
+      });
+  }
+
+  function publish() {
+    setStatus('saving', '同步中…');
+    var payload = JSON.stringify({ done: state.done, updated: state.updated });
+    pageSource().then(function (src) {
+      var next = src.replace(/(<script id="progress"[^>]*>)[\s\S]*?(<\/script>)/, function (_, a, b) { return a + payload + b; });
+      try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY)); } catch (e) {}
+      return artifactNs.publish(next);
+    }).then(function () {
+      setStatus('synced', '已同步，刷新中…');
+    }).catch(function (err) {
+      var code = err && err.code;
+      if (code === 'conflict') { setStatus('synced', '已有更新版本，正在刷新'); return; }
+      if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared') {
+        readOnly = true;
+        setStatus('local', '只读视图，进度仅保存在本浏览器');
+        return;
+      }
+      if (code === 'rate_limited') { setStatus('dirty', '同步太频繁，稍后自动重试'); publishTimer = setTimeout(publish, 15000); return; }
+      setStatus('local', '同步失败，进度已保存在本浏览器');
+    });
+  }
+
+  /* ---------- boot ---------- */
+  render();
+  try {
+    var y = sessionStorage.getItem(SCROLL_KEY);
+    if (y !== null) { window.scrollTo(0, +y); sessionStorage.removeItem(SCROLL_KEY); }
+  } catch (e) {}
+
+  var useP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('artifact') : Promise.resolve(null);
+  useP.then(function (ns) {
+    artifactNs = ns;
+    if (!ns) { setStatus('local', '进度保存在本浏览器'); return; }
+    var published = readPublished();
+    if ((state.updated || 0) > (published.updated || 0)) {
+      setStatus('dirty', '有本地更改，2 秒后同步…');
+      clearTimeout(publishTimer);
+      publishTimer = setTimeout(publish, 2000);
+    } else {
+      setStatus('synced', '已同步');
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# 数据与模型产物
+data/*.txt
+data/*.bin
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+out/
+runs/
+wandb/
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
