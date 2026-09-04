@@ -5,8 +5,8 @@
 - 起止：2026-09-05（周六）到 2026-11-29（周日）
 - 投入：工作日每天 1.5 小时，周末每天 3 小时，每周约 13.5 小时
 - 主线教材：Andrej Karpathy《Neural Networks: Zero to Hero》
-- 在线进度清单：<https://claude.ai/code/artifact/80314e5d-f5af-408f-98ee-d216fbe97bb3>
-- 本仓库内的清单副本：[docs/index.html](docs/index.html)（可开 GitHub Pages）
+- 在线进度清单：<https://instantnoodles.github.io/llm-from-scratch/>
+- 清单源码：[docs/index.html](docs/index.html)
 
 ## 仓库结构
 
