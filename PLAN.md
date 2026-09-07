@@ -2,28 +2,35 @@
 
 完成一项就把 `[ ]` 改成 `[x]`，然后提交。每周最后一条是完成标准。
 
-## W0 · 准备（9/5 周六 – 9/6 周日）
+> **9/7 调整**：首个周末只完成了装环境和线代 1 到 2 集。W0 剩余部分并入 9/7 到 9/9，W1 顺延 3 天到 9/10 到 9/15，W2 压缩为 9/16 到 9/20 五天，W3 起日期不变。如果本周末再次落空，整体顺延一周，不再压缩。
 
-- [ ] 周六：装环境，Python 3.11+、VS Code，`pip install torch numpy jupyter matplotlib`。跑通 `torch.randn(3,4) @ torch.randn(4,5)`，说出结果为什么是 3×5
-- [ ] 周六：建好本仓库，之后所有代码都放这里
-- [ ] 周六：看 3Blue1Brown《线性代数的本质》第 1 到 4 集
-- [ ] 周日：看《线性代数的本质》第 5 到 9 集，跳过行列式和特征值
-- [ ] 周日：NumPy 练习 1 小时，创建、索引切片、broadcasting、reshape、sum(axis=…)，每个先预测 shape 再运行
-- [ ] 周日：看 3Blue1Brown《神经网络》第 1 到 2 集
+## W0 · 准备（9/5 周六 – 9/9 周三，顺延 3 天）
+
+- [x] 上周末：装环境，Python 3.11+、VS Code，`pip install torch numpy jupyter matplotlib`
+- [x] 上周末：建好本仓库，之后所有代码都放这里
+- [x] 上周末：看 3Blue1Brown《线性代数的本质》第 1 到 2 集
+- [ ] 周一 9/7：看《线性代数的本质》第 3 到 5 集，线性变换、矩阵乘法即复合、三维变换
+- [ ] 周一 9/7：NumPy 上手 30 分钟，创建数组、索引切片，每次都打印 `shape`
+- [ ] 周二 9/8：看第 7 到 9 集，逆矩阵与列空间、非方阵、点积。第 6 集行列式跳过
+- [ ] 周二 9/8：看 3Blue1Brown《神经网络》第 1 到 2 集
+- [ ] 周三 9/9：NumPy 练习 1 小时，broadcasting、reshape、sum(axis=…)，每个先预测 shape 再运行
+- [ ] 周三 9/9：跑通 `torch.randn(3,4) @ torch.randn(4,5)`，把自测答案写进 `notes.md` 并提交
 - [ ] **完成标准**：不运行就能写出 `(32,10) @ (10,5)` 的结果形状，并用一句话解释矩阵乘法在做什么
 
-## W1 · micrograd：手写反向传播（9/7 – 9/13）
+## W1 · micrograd：手写反向传播（9/10 周四 – 9/15 周二，顺延 3 天）
 
-- [ ] 周一到周三：跟《building micrograd》视频敲完，每天约 50 分钟视频
-- [ ] 周四：看 3Blue1Brown《神经网络》第 3 到 4 集，和自己的代码对照
-- [ ] 周五：关掉视频，从空文件重写 `Value` 类和 `backward()`，对比原版
-- [ ] 周末：用自己的 micrograd 训练一个两层 MLP 做二分类，画出决策边界
+- [ ] 周四到周五：跟《building micrograd》视频前半，到手动算 backward 那段为止，边看边敲
+- [ ] 周六：把视频后半敲完，拓扑排序的 `backward()`、tanh、Neuron / Layer / MLP 类
+- [ ] 周六：看 3Blue1Brown《神经网络》第 3 到 4 集，和自己的代码对照
+- [ ] 周日：关掉视频，从空文件重写 `Value` 类和 `backward()`，对比原版
+- [ ] 周日：开始用自己的 micrograd 训练两层 MLP 做二分类
+- [ ] 下周一到周二 9/14 到 9/15：完成 MLP 二分类，画出决策边界，代码提交到 `week01-micrograd/`
 - [ ] **完成标准**：能默写 `__add__` 和 `__mul__` 的 backward，并说清链式法则在 `backward()` 里怎么体现
 
-## W2 · bigram 与 MLP 语言模型（9/14 – 9/20）
+## W2 · bigram 与 MLP 语言模型（9/16 周三 – 9/20 周日，压缩为 5 天）
 
-- [ ] 周一到周二：makemore Part 1，bigram 模型
-- [ ] 周三到周五：makemore Part 2，MLP。重点理解 embedding、隐藏层、softmax、交叉熵
+- [ ] 周三：makemore Part 1，bigram 模型
+- [ ] 周四到周五：makemore Part 2，MLP。重点理解 embedding、隐藏层、softmax、交叉熵
 - [ ] 周末：换一份自己找的数据集跑 MLP
 - [ ] 周末：调 embedding 维度和隐藏层大小，记录 loss 变化
 - [ ] **完成标准**：能解释交叉熵为什么是负对数似然，以及 train loss 与 val loss 分开看的意义
